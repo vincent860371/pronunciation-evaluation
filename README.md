@@ -1,173 +1,265 @@
-## 版本更新能力
+# 英文口语评测系统 - 腾讯智聆
 
-| 版本  |          更新内容           |
-| :---- | :-------------------------: |
-| 1.0.0 | 口语评测支持 websocket 协议 |
+基于腾讯云智聆口语评测（SOE）API 开发的英文口语评测 Web 应用，支持 **HTTP** 和 **WebSocket** 两种协议，提供发音准确度、流畅度和完整度等多维度评分。
 
-## 发音评估
+## ✨ 功能特性
 
-发音评估提供四种模式：词模式，句子模式，段落模式，自由说模式
+- 🎤 **实时录音评测** - 支持浏览器麦克风录音
+- ⚡ **双协议支持** - HTTP REST API + WebSocket 实时流式
+- 📊 **多维度评分** - 综合得分、准确度、流畅度、完整度
+- 🎯 **多种评测模式** - 词模式、句子模式、段落模式、自由说模式
+- 🎨 **现代化界面** - 深色主题，流畅动画效果
+- 📱 **响应式设计** - 支持各种设备访问
 
-## 引入方式
+## 🚀 快速开始
 
-1. 在 htm 中全局引入 TencentSOE-0.0.1.js 或者使用 import 在代码中引入
-2. 初始化 soe
+### 环境要求
 
-```
- new window.SowNewSocketSdk(params) / new SowNewSocketSdk(params);
-```
+- Python 3.7+
+- 现代浏览器（Chrome/Firefox/Edge 等）
+- 腾讯云账号（需要 SecretId 和 SecretKey）
 
-## 使用说明
+### 安装步骤
 
-在第一次使用插件之前，请前往 https://console.cloud.tencent.com/capi 申请安全凭证。 安全凭证包括 secretId 和 secretKey：
-
-secretId 用于标识 API 调用者身份
-secretKey 用于加密签名字符串和服务器端验证签名字符串的密钥。
-用户必须严格保管安全凭证，避免泄露。
-
-## 口语评测（websocket）
-
-1)获取实时录音评测管理器**SowNewSocketSdk**
-
-**SowNewSocketSdk类 的方法列表：**
-
-| 方法                     |   参数   | 说明                       |
-| :----------------------- | :------: | :------------------------- |
-| start                    | options  | 开始评测                   |
-| stop                     |          | 结束评测                   |
-| OnEvaluationStart        | callback | 开始评测回调               |
-| OnEvaluationResultChange | callback | 评测结果变化回调           |
-| OnEvaluationComplete     | callback | 评测完成回调               |
-| OnError                  | callback | 评测错误回调               |
-| OnRecorderStop           | callback | 录音结束回调               |
-| OnFrameRecorded          | callback | 监听已录制完指定帧大小回调 |
-
-**start(options)说明：**
-
-**接口文档 https://cloud.tencent.com/document/product/1774/107497**
-
-**示例代码:**
-
-```
-    // index.js
-    // 实例化类 isLog为可选参数，类型为布尔值，当isLog为true时，打印本地日志并将日志存入indexDB。
-    const soeEvaluationManager = new window.SowNewSocketSdk(params, isLog);
-
-    // 请在页面onLoad时初始化好下列函数并确保腾讯云账号信息已经设置
-    // 开始评测
-    soeEvaluationManager.OnRecognitionStart = (res) => {
-      console.log('开始评测', res);
-    }
-    // 评测变化时
-    soeEvaluationManager.OnRecognitionResultChange = (res) => {
-      console.log('评测变化时', res)
-    }
-    // 评测结束
-    soeEvaluationManager.OnRecognitionComplete = (res) => {
-      console.log('评测结束', res);
-    }
-    // 评测错误
-    soeEvaluationManager.OnError = (res) => {
-      console.log('评测失败', res);
-    }
-    // 录音结束（最长10分钟）时回调
-    soeEvaluationManager.OnRecorderStop = (res) => {
-      console.log('录音结束', res);
-    }
-
-    // 下载本地日志时回调
-    const logs = soeEvaluationManager.OndownloadLogs();
-
-    // 需要开始评测时调用此方法
-    const params = {
-          secretkey: '',
-          secretid:  '',
-          appid: '',  // 腾讯云账号appid（非微信appid）
-          token: ''  // 选填参数，若密钥为临时密钥，需传此参数。
-          // 录音参数
-          server_engine_type : '16k_zh',
-          text_mode: '',
-          ref_text: '',
-          eval_mode: '',
-          score_coeff: '',
-          // 是否返回中间结果
-          sentence_info_enabled: 1 // 值为1时，OnRecognitionResultChange回调会有数据
-    };
-
-    speechEvaluationManager.start(params);
-    // 需要停止评测时调用此方法
-    speechEvaluationManager.stop();
+1. **克隆项目**
+```bash
+git clone https://github.com/vincent860371/pronunciation-evaluation.git
+cd pronunciation-evaluation
 ```
 
-2)若需要自己处理音频，只调用评测功能，可使用**SoeNewConnect**
+2. **创建虚拟环境**
+```bash
+python -m venv venv
+```
 
-**SoeNewConnect 类的方法列表：**
+3. **激活虚拟环境**
 
-| 方法                     |   参数   | 说明             |
-| :----------------------- | :------: | :--------------- |
-| start                    | options  | 开始评测         |
-| stop                     |          | 结束评测         |
-| OnEvaluationStart        | callback | 开始评测回调     |
-| OnEvaluationResultChange | callback | 评测结果变化回调 |
-| OnEvaluationComplete     | callback | 评测完成回调     |
-| OnError                  | callback | 评测错误回调     |
+Windows:
+```bash
+venv\Scripts\activate
+```
 
-**其他参数和返回字段参考 接口文档 https://cloud.tencent.com/document/product/1774/107497**
+Linux/Mac:
+```bash
+source venv/bin/activate
+```
 
-**示例代码:**
+4. **安装依赖**
 
-### logServer(可选参数不传默认不开启)为日志存储插件可以使用 window.SoeNewLogRepor 开启日志存储功能
+选择一个版本安装依赖：
 
-### isLog 为可选参数，类型为布尔值，当 isLog 为 true 时，打印本地日志并将日志存入 indexDB。
+**HTTP 版本（简单快速）**
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+**WebSocket 版本（实时流式）**
+```bash
+pip install -r requirements_websocket.txt
+python app_websocket.py
+```
+
+5. **访问应用**
+
+打开浏览器访问：http://localhost:5000
+
+## 📋 版本对比
+
+| 特性 | HTTP 版本 | WebSocket 版本 |
+|------|-----------|----------------|
+| **实时反馈** | ❌ 录音结束后返回 | ✅ 边说边评 |
+| **延迟** | 较高 | 低 |
+| **连接方式** | 短连接 | 长连接 |
+| **流式传输** | ❌ | ✅ |
+| **实现复杂度** | 简单 | 中等 |
+| **适用场景** | 短音频评测 | 实时对话评测 |
+| **文件** | `app.py` + `index.html` | `app_websocket.py` + `index_websocket.html` |
+
+## 📁 项目结构
 
 ```
-    const logServer = window.SoeNewLogReport(isLog);
-    logServer.LogInit();
-    const evaluationManager = new window.SoeNewConnect(params, isLog, logServer);
-    const params = {
-      secretkey: '',
-      secretid:  '',
-      appid: '',  // 腾讯云账号appid（非微信appid）
-      token: ''  // 选填参数，若密钥为临时密钥，需传此参数。
-      // 录音参数
-      server_engine_type : '16k_zh',
-      text_mode: '',
-      ref_text: '',
-      eval_mode: '',
-      score_coeff: '',
-      // 是否返回中间结果
-      sentence_info_enabled: 1 // 值为1时，OnRecognitionResultChange回调会有数据
-    };
-
-    if (// 可以开始评测了) { // 此处需要判断是否建立连接成功，可在 OnRecognitionStart 回调中加标识判断
-        // 发送数据 (此过程应该是一个连续的过程)
-        evaluationManager.write(data);
-    }
-    // 开始评测(此时连接已经建立)
-    evaluationManager.OnEvaluationStart = (res) => {
-        console.log('开始评测', res)
-    }
-    // 评测变化时
-    evaluationManager.OnEvaluationResultChange = (res) => {
-       console.log('评测变化时', res)
-    }
-    // 评测结束
-    evaluationManager.OnEvaluationComplete = (res) => {
-       console.log('评测结束', res)
-    }
-    // 评测错误
-    evaluationManager.OnError = (res) => {
-       console.log('评测失败', res)
-    }
-
-    // 建立websocket连接
-    evaluationManager.start(params);
-
-    // 断开连接
-    if (连接已经建立...) {
-        evaluationManager.stop();
-    }
-
-    // 下载本地日志时回调
-    const logs = evaluationManager.OndownloadLogs();
+pronunciation-evaluation/
+├── venv/                          # 虚拟环境
+├── app.py                         # HTTP 后端服务
+├── app_websocket.py               # WebSocket 后端服务
+├── index.html                     # HTTP 版本前端
+├── index_websocket.html           # WebSocket 版本前端
+├── requirements.txt               # HTTP 版本依赖
+├── requirements_websocket.txt     # WebSocket 版本依赖
+├── README.md                      # 项目说明文档
+├── WEBSOCKET_VERSION.md           # WebSocket 详细说明
+├── GITHUB_SETUP.md                # GitHub 部署指南
+└── .gitignore                     # Git 忽略文件
 ```
+
+## 📝 使用说明
+
+### 1. 获取腾讯云密钥
+
+访问 [腾讯云控制台](https://console.cloud.tencent.com/capi) 获取：
+- **SecretId** - API 调用者身份标识
+- **SecretKey** - 签名密钥
+
+### 2. 配置密钥
+
+在网页中填写您的 SecretId 和 SecretKey
+
+### 3. 开始评测
+
+1. 选择评测模式和评分系数
+2. 输入要朗读的英文文本
+3. 点击"开始录音"并朗读
+4. 点击"停止评测"获取结果
+
+## ⚙️ 配置参数
+
+### 评测模式
+
+- **0** - 词模式：评测单个单词
+- **1** - 句子模式：评测完整句子（推荐）
+- **2** - 段落模式：评测多句段落
+- **3** - 自由说模式：开放式评测
+
+### 评分系数
+
+- **1.0** - 严格评分
+- **1.5** - 推荐（默认）
+- **2.0** - 适中
+- **3.0** - 宽松
+- **4.0** - 非常宽松
+
+### 音频要求
+
+- **采样率**: 16000Hz
+- **采样精度**: 16bits
+- **声道**: 单声道 (mono)
+- **格式**: PCM, WAV, MP3, Speex
+
+## 🔧 技术栈
+
+### 后端
+- **Flask** - Python Web 框架
+- **Flask-CORS** / **Flask-Sock** - 跨域 / WebSocket 支持
+- **tencentcloud-sdk-python** - 腾讯云 SDK
+- **websocket-client** - WebSocket 客户端
+
+### 前端
+- **原生 JavaScript** - 无框架依赖
+- **WebRTC / WebSocket** - 浏览器录音和实时通信
+- **CSS3** - 现代化样式和动画
+
+## 📄 API 接口
+
+### HTTP 版本
+
+**POST /evaluate**
+
+```json
+{
+  "secret_id": "your_secret_id",
+  "secret_key": "your_secret_key",
+  "ref_text": "Hello, how are you today?",
+  "eval_mode": 1,
+  "score_coeff": 1.5,
+  "audio_data": "base64_encoded_audio"
+}
+```
+
+### WebSocket 版本
+
+**WS /ws/evaluate**
+
+```javascript
+// 连接
+ws = new WebSocket('ws://localhost:5000/ws/evaluate')
+
+// 开始评测
+ws.send(JSON.stringify({
+    action: 'start',
+    secret_id: '...',
+    ref_text: 'Hello world',
+    eval_mode: 1
+}))
+
+// 发送音频
+ws.send(JSON.stringify({
+    action: 'audio',
+    audio_data: 'base64...'
+}))
+
+// 结束评测
+ws.send(JSON.stringify({
+    action: 'end'
+}))
+```
+
+详细说明请查看 [WEBSOCKET_VERSION.md](WEBSOCKET_VERSION.md)
+
+## 🔒 安全说明
+
+- ⚠️ **不要将密钥提交到 Git 仓库**
+- ⚠️ **生产环境建议使用临时密钥或后端代理**
+- ⚠️ **定期轮换密钥以保证安全**
+- ⚠️ **使用 HTTPS/WSS 加密传输**
+
+## 📊 评分说明
+
+- **综合得分** - 整体发音质量评分（0-100）
+- **准确度** - 发音准确性（0-100）
+- **流畅度** - 语音流畅程度（0-100）
+- **完整度** - 内容完整性（0-100）
+
+## 🐛 常见问题
+
+### 1. 麦克风权限被拒绝
+
+确保浏览器已允许麦克风权限，HTTPS 或 localhost 环境下可用。
+
+### 2. 评测返回错误
+
+- 检查 SecretId 和 SecretKey 是否正确
+- 确认腾讯云账户已开通智聆口语评测服务
+- 查看控制台错误信息
+
+### 3. WebSocket 连接失败
+
+- 确认使用了正确的启动脚本 `app_websocket.py`
+- 检查端口 5000 是否被占用
+- 查看后端日志
+
+## 📚 参考文档
+
+- [腾讯云智聆口语评测 API 文档](https://cloud.tencent.com/document/product/1774)
+- [WebSocket 版本详细说明](WEBSOCKET_VERSION.md)
+- [Flask 文档](https://flask.palletsprojects.com/)
+- [WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+
+## 🎯 使用建议
+
+### HTTP 版本适用于：
+- ✅ 短句评测（<10秒）
+- ✅ 简单场景
+- ✅ 快速原型开发
+
+### WebSocket 版本适用于：
+- ✅ 实时对话评测
+- ✅ 长段落评测
+- ✅ 需要即时反馈的场景
+
+## 📄 开源协议
+
+MIT License
+
+## 👥 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📮 联系方式
+
+- GitHub: [@vincent860371](https://github.com/vincent860371)
+- 项目地址: https://github.com/vincent860371/pronunciation-evaluation
+
+---
+
+⭐ 如果这个项目对您有帮助，请给个 Star！
