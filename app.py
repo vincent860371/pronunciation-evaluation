@@ -197,7 +197,7 @@ active_connections = {}
 @app.route('/')
 def index():
     """返回前端页面"""
-    return send_from_directory('.', 'index_websocket.html')
+    return send_from_directory('.', 'index.html')
 
 
 @sock.route('/ws/evaluate')
