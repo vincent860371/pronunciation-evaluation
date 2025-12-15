@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英文口语评测 - 腾讯智聆</title>
+    <title>英文口语评测 - WebSocket 版本</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Noto+Sans+SC:wght@400;500&display=swap');
         
@@ -30,11 +30,29 @@
             text-align: center;
             font-size: 1.8rem;
             font-weight: 600;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             background: linear-gradient(90deg, #00d9ff, #00ff88);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(0, 217, 255, 0.2);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #00d9ff;
+            margin-left: 8px;
         }
         
         .card {
@@ -273,6 +291,10 @@
             color: #00ff88;
         }
         
+        .log-item.info {
+            color: #00d9ff;
+        }
+        
         .inline-inputs {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -326,6 +348,9 @@
 <body>
     <div class="container">
         <h1>🎤 英文口语评测</h1>
+        <div class="subtitle">
+            <span class="badge">WebSocket 实时评测</span>
+        </div>
         
         <!-- 账号配置 -->
         <div class="card">
@@ -388,8 +413,8 @@
                 <span class="status-text" id="statusText">准备就绪</span>
             </div>
             <div class="btn-group">
-                <button class="btn btn-start" id="btnStart">开始录音</button>
-                <button class="btn btn-stop" id="btnStop" disabled>停止并评测</button>
+                <button class="btn btn-start" id="btnStart">开始录音评测</button>
+                <button class="btn btn-stop" id="btnStop" disabled>停止评测</button>
             </div>
         </div>
         
@@ -419,7 +444,7 @@
             </div>
         </div>
         
-        <p class="tip">请确保浏览器已允许麦克风权限</p>
+        <p class="tip">WebSocket 实时流式评测 | 请确保浏览器已允许麦克风权限</p>
     </div>
 
     <script>
@@ -436,13 +461,15 @@
         const pronFluency = document.getElementById('pronFluency');
         const pronCompletion = document.getElementById('pronCompletion');
 
-        // 录音相关变量
+        // WebSocket 和录音相关变量
+        let ws = null;
         let mediaRecorder = null;
-        let audioChunks = [];
+        let audioContext = null;
         let isRecording = false;
+        let audioChunks = [];
 
-        // API 地址
-        const API_URL = '/evaluate';
+        // WebSocket 地址
+        const WS_URL = `ws://${window.location.host}/ws/evaluate`;
 
         // 添加日志
         function addLog(message, type = 'normal') {
@@ -466,29 +493,95 @@
         }
 
         // 显示分数
-        function showScore(data) {
+        function showScore(result) {
+            if (!result || !result.result) return;
+            
+            const data = result.result;
             scoreDisplay.style.display = 'block';
             
-            if (data.SuggestedScore !== undefined) {
-                scoreValue.textContent = data.SuggestedScore.toFixed(1);
+            if (data.overall !== undefined) {
+                scoreValue.textContent = data.overall.toFixed(1);
             }
-            if (data.PronAccuracy !== undefined) {
-                pronAccuracy.textContent = data.PronAccuracy.toFixed(1);
+            if (data.phone_score !== undefined) {
+                pronAccuracy.textContent = data.phone_score.toFixed(1);
             }
-            if (data.PronFluency !== undefined) {
-                pronFluency.textContent = data.PronFluency.toFixed(1);
+            if (data.fluency_score !== undefined) {
+                pronFluency.textContent = data.fluency_score.toFixed(1);
             }
-            if (data.PronCompletion !== undefined) {
-                pronCompletion.textContent = data.PronCompletion.toFixed(1);
+            if (data.integrity_score !== undefined) {
+                pronCompletion.textContent = data.integrity_score.toFixed(1);
             }
         }
 
-        // 开始录音
+        // 连接 WebSocket
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    addLog('WebSocket 连接已建立', 'success');
+                    resolve();
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (e) {
+                        addLog(`解析消息失败: ${e.message}`, 'error');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    addLog('WebSocket 连接错误', 'error');
+                    updateStatus('error', '连接错误');
+                    reject(error);
+                };
+                
+                ws.onclose = () => {
+                    addLog('WebSocket 连接已关闭', 'info');
+                    resetButtons();
+                };
+            });
+        }
+
+        // 处理 WebSocket 消息
+        function handleWebSocketMessage(data) {
+            console.log('收到消息:', data);
+            
+            if (data.code !== undefined && data.code !== 0) {
+                addLog(`错误: ${data.message}`, 'error');
+                updateStatus('error', '评测错误');
+                return;
+            }
+            
+            if (data.message) {
+                addLog(data.message, 'info');
+            }
+            
+            // 实时评测结果
+            if (data.result) {
+                showScore(data);
+                if (data.result.overall !== undefined) {
+                    addLog(`实时得分: ${data.result.overall.toFixed(1)}`, 'success');
+                }
+            }
+            
+            // 最终结果
+            if (data.final === 1) {
+                addLog('评测完成！', 'success');
+                updateStatus('ready', '评测完成');
+                stopRecording();
+            }
+        }
+
+        // 开始录音和评测
         async function startRecording() {
             const secretId = document.getElementById('secretId').value.trim();
             const secretKey = document.getElementById('secretKey').value.trim();
             const refText = document.getElementById('refText').value.trim();
             const evalMode = document.getElementById('evalMode').value;
+            const scoreCoeff = document.getElementById('scoreCoeff').value;
 
             // 参数验证
             if (!secretId || !secretKey) {
@@ -502,10 +595,25 @@
             }
 
             clearLogs();
-            addLog('正在请求麦克风权限...');
+            addLog('正在连接 WebSocket...');
+            updateStatus('ready', '正在连接...');
 
             try {
+                // 连接 WebSocket
+                await connectWebSocket();
+                
+                // 发送开始评测指令
+                ws.send(JSON.stringify({
+                    action: 'start',
+                    secret_id: secretId,
+                    secret_key: secretKey,
+                    ref_text: refText,
+                    eval_mode: parseInt(evalMode),
+                    score_coeff: parseFloat(scoreCoeff)
+                }));
+                
                 // 请求麦克风权限
+                addLog('正在请求麦克风权限...');
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
                         sampleRate: 16000,
@@ -516,40 +624,30 @@
                 });
 
                 addLog('麦克风权限已获取', 'success');
-                updateStatus('recording', '正在录音...');
+                updateStatus('recording', '正在录音评测...');
                 visualizer.classList.add('active');
 
-                // 创建录音器
+                // 创建录音器 - 使用 PCM 格式
                 mediaRecorder = new MediaRecorder(stream, {
                     mimeType: 'audio/webm;codecs=opus'
                 });
 
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+                        // 转换为 base64 并发送
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const base64Audio = reader.result.split(',')[1];
+                            ws.send(JSON.stringify({
+                                action: 'audio',
+                                audio_data: base64Audio
+                            }));
+                        };
+                        reader.readAsDataURL(event.data);
                     }
                 };
 
-                mediaRecorder.onstop = async () => {
-                    visualizer.classList.remove('active');
-                    updateStatus('ready', '正在评测...');
-                    addLog('录音结束，正在发送评测请求...');
-
-                    // 合并音频数据
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    
-                    // 转换为 base64
-                    const reader = new FileReader();
-                    reader.onloadend = async () => {
-                        const base64Audio = reader.result.split(',')[1];
-                        await sendEvaluateRequest(base64Audio);
-                    };
-                    reader.readAsDataURL(audioBlob);
-                };
-
-                // 开始录音
+                // 开始录音，每 100ms 发送一次数据
                 mediaRecorder.start(100);
                 isRecording = true;
                 btnStart.disabled = true;
@@ -557,8 +655,9 @@
                 addLog('开始录音，请朗读文本', 'success');
 
             } catch (error) {
-                addLog(`麦克风权限获取失败: ${error.message}`, 'error');
-                updateStatus('error', '权限被拒绝');
+                addLog(`启动失败: ${error.message}`, 'error');
+                updateStatus('error', '启动失败');
+                if (ws) ws.close();
             }
         }
 
@@ -567,70 +666,44 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                btnStart.disabled = false;
-                btnStop.disabled = true;
             }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // 发送结束标记
+                ws.send(JSON.stringify({
+                    action: 'end'
+                }));
+                addLog('正在处理评测结果...');
+                
+                // 延迟关闭连接，等待最终结果
+                setTimeout(() => {
+                    if (ws) ws.close();
+                }, 2000);
+            }
+            
+            visualizer.classList.remove('active');
+            isRecording = false;
+            resetButtons();
         }
 
-        // 发送评测请求
-        async function sendEvaluateRequest(audioData) {
-            const secretId = document.getElementById('secretId').value.trim();
-            const secretKey = document.getElementById('secretKey').value.trim();
-            const refText = document.getElementById('refText').value.trim();
-            const evalMode = document.getElementById('evalMode').value;
-            const scoreCoeff = document.getElementById('scoreCoeff').value;
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        secret_id: secretId,
-                        secret_key: secretKey,
-                        ref_text: refText,
-                        eval_mode: evalMode,
-                        score_coeff: scoreCoeff,
-                        audio_data: audioData
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    addLog('评测完成!', 'success');
-                    updateStatus('ready', '评测完成');
-                    showScore(result.data);
-                    
-                    addLog(`综合得分: ${result.data.SuggestedScore?.toFixed(1) || '--'}`, 'success');
-                    addLog(`发音准确度: ${result.data.PronAccuracy?.toFixed(1) || '--'}`);
-                    addLog(`发音流畅度: ${result.data.PronFluency?.toFixed(1) || '--'}`);
-                    addLog(`发音完整度: ${result.data.PronCompletion?.toFixed(1) || '--'}`);
-                    
-                    // 显示单词详情
-                    if (result.data.Words && result.data.Words.length > 0) {
-                        addLog('--- 单词详情 ---');
-                        result.data.Words.forEach(word => {
-                            const status = word.PronAccuracy >= 60 ? '✓' : '✗';
-                            addLog(`${status} ${word.Word}: ${word.PronAccuracy?.toFixed(1) || '--'}分`);
-                        });
-                    }
-                } else {
-                    addLog(`评测失败: ${result.error || '未知错误'}`, 'error');
-                    updateStatus('error', '评测失败');
-                }
-
-            } catch (error) {
-                addLog(`请求失败: ${error.message}`, 'error');
-                updateStatus('error', '请求失败');
-            }
+        // 重置按钮状态
+        function resetButtons() {
+            btnStart.disabled = false;
+            btnStop.disabled = true;
         }
 
         // 事件绑定
         btnStart.addEventListener('click', startRecording);
         btnStop.addEventListener('click', stopRecording);
+        
+        // 页面关闭时清理资源
+        window.addEventListener('beforeunload', () => {
+            if (ws) ws.close();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        });
     </script>
 </body>
 </html>
+
