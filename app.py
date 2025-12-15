@@ -29,21 +29,29 @@ SECRET_KEY = os.environ.get('TENCENT_SECRET_KEY', '')
 
 def generate_signature(secret_id, secret_key, params):
     """生成腾讯云 API 签名"""
-    # 拼接签名原文字符串
-    sign_str = "POST" + "soe.cloud.tencent.com/soe/api/" + "?"
+    # 创建签名参数副本（移除 signature 字段）
+    sign_params = {k: v for k, v in params.items() if k != 'signature'}
     
-    # 对参数排序
-    sorted_params = sorted(params.items())
-    sign_str += urlencode(sorted_params)
+    # 对参数按 key 排序
+    sorted_keys = sorted(sign_params.keys())
     
-    # 计算签名
+    # 拼接签名原文字符串: POSThosturi?key1=value1&key2=value2
+    sign_str = "POSTsoe.cloud.tencent.com/soe/api/?"
+    sign_str += "&".join([f"{k}={sign_params[k]}" for k in sorted_keys])
+    
+    print(f"[DEBUG] 签名原文: {sign_str}")
+    
+    # 使用 HMAC-SHA1 计算签名
     sign = hmac.new(
         secret_key.encode('utf-8'),
         sign_str.encode('utf-8'),
         hashlib.sha1
     ).digest()
     
+    # Base64 编码
     signature = base64.b64encode(sign).decode('utf-8')
+    print(f"[DEBUG] 签名结果: {signature}")
+    
     return signature
 
 
@@ -61,21 +69,24 @@ class TencentSOEWebSocket:
         
     def connect(self):
         """连接到腾讯云 WebSocket 服务"""
-        # 构建请求参数
+        # 当前时间戳
+        timestamp = int(time.time())
+        
+        # 构建请求参数（参数名称必须严格按照文档）
         request_params = {
             'secretid': self.secret_id,
-            'timestamp': str(int(time.time())),
-            'expired': str(int(time.time()) + 24 * 60 * 60),
-            'nonce': str(int(time.time() * 1000)),
-            'engine_model_type': '16k_en',  # 英文引擎
+            'timestamp': str(timestamp),
+            'expired': str(timestamp + 24 * 60 * 60),  # 24小时后过期
+            'nonce': str(timestamp),
+            'server_engine_type': '16k_en',  # 英文引擎（参数名是 server_engine_type 不是 engine_model_type）
             'voice_id': self.voice_id,
             'voice_format': '1',  # 1: pcm
             'needvad': '1',
         }
         
         # 添加评测参数
-        if 'ref_text' in self.params:
-            request_params['text'] = self.params['ref_text']
+        if 'ref_text' in self.params and self.params['ref_text']:
+            request_params['ref_text'] = self.params['ref_text']
         if 'eval_mode' in self.params:
             request_params['eval_mode'] = str(self.params['eval_mode'])
         if 'score_coeff' in self.params:
@@ -87,6 +98,7 @@ class TencentSOEWebSocket:
         
         # 构建 WebSocket URL
         url = f"wss://soe.cloud.tencent.com/soe/api/?{urlencode(request_params)}"
+        print(f"[DEBUG] WebSocket URL: {url[:100]}...")
         
         # 连接 WebSocket
         self.ws = websocket.WebSocketApp(
